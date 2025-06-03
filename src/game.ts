@@ -36,7 +36,19 @@ type Player = {
 // type used to track the winner of a given hand (undetermined, tie, p1, or p2)
 type Result = 'undetermined' | 'tie' | 'p1' | 'p2'
 
-// a Hand is a complete round of play
+// type used to track the state of the action (whose turn it is to act)
+type ActionOn = 1 | 2
+
+// categories of action which can be taken on a player's turn
+type Act = 'check' | 'call' | 'raise' | 'fold'
+
+// action the player is taking -- Action + a potential wager acount
+type Action = {
+  act: Act
+  wager: number
+}
+
+// a Hand is a round of play
 type Hand = {
   // the cards that we're drawing from
   deck: Deck
@@ -50,8 +62,12 @@ type Hand = {
   p1: Player
   // player 2
   p2: Player
+  // the number of the player whose turn it is to act
+  action: ActionOn
   // who won this hand?
   winner: Result
+  // Contextual information describing what the last action taken was
+  context: String
 }
 
 // return a shuffled Deck
@@ -80,3 +96,50 @@ function generateDeck(): Deck {
   return shuffledDeck
 }
 
+// Return a new hand
+// TODO -- OPTIONALLY PASS PLAYERS TO THE HAND RATHER THAN CREATING THEM IN THE HAND
+function generateHand(): Hand {
+  const deck: Deck = generateDeck();
+
+  // Pop the first four cards from the deck
+  // These will be distributed as the player's hole cards, in alternating order
+  const card1: Card = deck.pop()!; 
+  const card2: Card = deck.pop()!;
+  const card3: Card = deck.pop()!;
+  const card4: Card = deck.pop()!;
+
+  // Define player1, who will be the initial Big Blind
+  const player1: Player = {
+    holeCards: [card1, card3],
+    stack: 100,
+    wager: 0,
+    bigBlind: true
+  }
+
+  const player2: Player = {
+    holeCards: [card2, card4],
+    stack: 100,
+    wager: 0,
+    bigBlind: true
+  }
+
+  const newHand: Hand = {
+    deck: deck,
+    board: [],
+    street: "preflop",
+    pot: 0,
+    p1: player1,
+    p2: player2,
+    action: 2,
+    winner: 'undetermined',
+    context: 'New hand'
+  }
+
+  return newHand
+}
+
+function processAction(hand: Hand, action: Action): Hand {
+  const newHand: Hand = structuredClone(hand)  
+
+  return newHand
+}
