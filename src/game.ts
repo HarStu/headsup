@@ -21,8 +21,13 @@ type Board = [] | [Card, Card, Card] | [Card, Card, Card, Card] | [Card, Card, C
 // the street refers to the current round of play. More cards are added to the board as play continues.
 type Street = 'preflop' | 'flop' | 'turn' | 'river'
 
+// type used to track the state of the action (whose turn it is to act)
+type ActionOn = 1 | 2
+
 // a player is a participant in the game
 type Player = {
+  // id of the player
+  id: ActionOn
   // the player's private hole cards
   holeCards: HoleCards
   // the amount of money the player has to gamble with
@@ -34,10 +39,7 @@ type Player = {
 }
 
 // type used to track the winner of a given hand (undetermined, tie, p1, or p2)
-type Result = 'undetermined' | 'tie' | 'p1' | 'p2'
-
-// type used to track the state of the action (whose turn it is to act)
-type ActionOn = 1 | 2
+type Result = 'undetermined' | 'tie' | 1 | 2
 
 // categories of action which can be taken on a player's turn
 type Act = 'check' | 'call' | 'raise' | 'fold'
@@ -63,7 +65,7 @@ type Hand = {
   // player 2
   p2: Player
   // the number of the player whose turn it is to act
-  action: ActionOn
+  actionOn: ActionOn
   // who won this hand?
   winner: Result
   // Contextual information describing what the last action taken was
@@ -110,6 +112,7 @@ function generateHand(): Hand {
 
   // Define player1, who will be the initial Big Blind
   const player1: Player = {
+    id: 1,
     holeCards: [card1, card3],
     stack: 100,
     wager: 0,
@@ -117,6 +120,7 @@ function generateHand(): Hand {
   }
 
   const player2: Player = {
+    id: 2,
     holeCards: [card2, card4],
     stack: 100,
     wager: 0,
@@ -130,7 +134,7 @@ function generateHand(): Hand {
     pot: 0,
     p1: player1,
     p2: player2,
-    action: 2,
+    actionOn: 2,
     winner: 'undetermined',
     context: 'New hand'
   }
@@ -139,7 +143,31 @@ function generateHand(): Hand {
 }
 
 function processAction(hand: Hand, action: Action): Hand {
-  const newHand: Hand = structuredClone(hand)  
+  let newHand: Hand = structuredClone(hand);
+
+  // create shorthand pointer to the 'live player' vs the 'other player', based on who the action is on
+  let livePlayer: Player;
+  let otherPlayer: Player;
+  if (newHand.actionOn === 1) {
+    livePlayer = newHand.p1;
+    otherPlayer = newHand.p2;
+  } else {
+    livePlayer = newHand.p2;
+    otherPlayer = newHand.p1;
+  }
+
+  if (action.act === 'fold') {
+    // in the case of a fold, the other player immediately wins the hand
+    newHand.winner = otherPlayer.id
+    newHand.context = `Player ${livePlayer} has folded. Player ${otherPlayer.id} wins`
+    return newHand;
+  } else if (action.act === 'check') {
+    if (livePlayer.wager === otherPlayer.wager) {
+
+    } else {
+
+    }
+  }
 
   return newHand
 }
