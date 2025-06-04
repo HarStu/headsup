@@ -15,8 +15,8 @@ type Deck = Card[]
 // Hole Cards are a player's two private cards
 type HoleCards = [Card, Card]
 
-// the board is the cards which are available to each player
-type Board = [] | [Card, Card, Card] | [Card, Card, Card, Card] | [Card, Card, Card, Card, Card]
+// the board is the cards which are available to both players
+type Board = Card[]
 
 // the street refers to the current round of play. More cards are added to the board as play continues.
 type Street = 'preflop' | 'flop' | 'turn' | 'river'
@@ -81,7 +81,7 @@ function generateDeck(): Deck {
   let unshuffledDeck: Deck = []
   for (let cardSuit of validSuits) {
     for (let cardRank of validRanks) {
-      unshuffledDeck.push({suit: cardSuit, rank: cardRank})
+      unshuffledDeck.push({ suit: cardSuit, rank: cardRank })
     }
   }
 
@@ -105,7 +105,7 @@ function generateHand(): Hand {
 
   // Pop the first four cards from the deck
   // These will be distributed as the player's hole cards, in alternating order
-  const card1: Card = deck.pop()!; 
+  const card1: Card = deck.pop()!;
   const card2: Card = deck.pop()!;
   const card3: Card = deck.pop()!;
   const card4: Card = deck.pop()!;
@@ -142,6 +142,7 @@ function generateHand(): Hand {
   return newHand
 }
 
+// Process a player's action and return the new state of the Hand
 function processAction(hand: Hand, action: Action): Hand {
   let newHand: Hand = structuredClone(hand);
 
@@ -162,12 +163,53 @@ function processAction(hand: Hand, action: Action): Hand {
     newHand.context = `Player ${livePlayer} has folded. Player ${otherPlayer.id} wins`
     return newHand;
   } else if (action.act === 'check') {
+    // in the case of a check, the hand ALWAYS advances to the next street
     if (livePlayer.wager === otherPlayer.wager) {
 
     } else {
-
+      newHand.context = `Check not allowed here`
+      return newHand
     }
   }
+
+  return newHand
+}
+
+// Advance the street -- preflop/flop/turn advance, river move onto the showdown
+function advanceStreet(hand: Hand): Hand {
+  let newHand: Hand = structuredClone(hand);
+
+  // Move both player's money into the pot 
+  newHand.pot += newHand.p1.wager;
+  newHand.p1.wager = 0;
+  newHand.pot += newHand.p2.wager;
+  newHand.p2.wager = 0;
+
+  // Set who's first to act next street based on who's the big blind
+  // After the preflop, the (former) big blind is always the first to act
+  newHand.p1.bigBlind ? newHand.actionOn = 1 : newHand.actionOn = 2;
+
+  // draw new cards/advance to the 
+  if (newHand.street === 'preflop') {
+    newHand.board = [newHand.deck.pop()!, newHand.deck.pop()!, newHand.deck.pop()!]
+    newHand.street = 'flop';
+  } else if (newHand.street === 'flop' || newHand.street === 'turn') {
+    newHand.board.push(newHand.deck.pop()!)
+    newHand.street === 'flop' ? newHand.street = 'turn' : newHand.street = 'river';
+  } else if (newHand.street === 'river') {
+    // PLACEHOLDER
+    console.log('showdown placeholder')
+  }
+
+  return newHand
+}
+
+// calculate a showdown
+function showdown(hand: Hand): Hand {
+  let newHand = structuredClone(hand)
+
+  newHand.winner = 'tie'
+  newHand.context = 'tie -- this is just a placeholder right now!'
 
   return newHand
 }
