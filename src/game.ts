@@ -100,7 +100,7 @@ function generateDeck(): Deck {
 
 // Return a new hand
 // TODO -- OPTIONALLY PASS PLAYERS TO THE HAND RATHER THAN CREATING THEM IN THE HAND
-function generateHand(): Hand {
+export function generateHand(): Hand {
   const deck: Deck = generateDeck();
 
   // Pop the first four cards from the deck
