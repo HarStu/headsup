@@ -42,7 +42,7 @@ type Player = {
 type Result = 'undetermined' | 'tie' | 1 | 2
 
 // categories of action which can be taken on a player's turn
-type Act = 'check' | 'call' | 'raise' | 'fold'
+export type Act = 'check' | 'call' | 'raise' | 'fold'
 
 // action the player is taking -- Action + a potential wager acount
 type Action = {
@@ -51,7 +51,7 @@ type Action = {
 }
 
 // a Hand is a round of play
-type Hand = {
+export type Hand = {
   // the cards that we're drawing from
   deck: Deck
   // the cards present on the table
@@ -143,27 +143,33 @@ export function generateHand(): Hand {
 }
 
 // Process a player's action and return the new state of the Hand
-function processAction(hand: Hand, action: Action): Hand {
+export function processAction(hand: Hand, action: Action): Hand {
+  console.log('Making clone')
   let newHand: Hand = structuredClone(hand);
 
   // create shorthand pointer to the 'live player' vs the 'other player', based on who the action is on
   let livePlayer: Player;
   let otherPlayer: Player;
   if (newHand.actionOn === 1) {
+    console.log('Live player is 1')
     livePlayer = newHand.p1;
     otherPlayer = newHand.p2;
   } else {
+    console.log('Live player is 2')
     livePlayer = newHand.p2;
     otherPlayer = newHand.p1;
   }
 
   if (action.act === 'fold') {
     // in the case of a fold, the other player immediately wins the hand
+    console.log('Action is fold')
     newHand.winner = otherPlayer.id
     newHand.context = `Player ${livePlayer} has folded. Player ${otherPlayer.id} wins`
     return newHand;
   } else if (action.act === 'check') {
     // in the case of a check, the hand ALWAYS advances to the next street
+    // this is a little shortcut because we're just playing heads up
+    console.log('Action is check')
     if (livePlayer.wager === otherPlayer.wager) {
 
     } else {
