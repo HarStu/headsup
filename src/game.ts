@@ -164,7 +164,7 @@ export function processAction(hand: Hand, action: Action): Hand {
     // in the case of a fold, the other player immediately wins the hand
     console.log('Action is fold')
     newHand.winner = otherPlayer.id
-    newHand.context = `Player ${livePlayer} has folded. Player ${otherPlayer.id} wins`
+    newHand.context = `Player ${livePlayer.id} has folded. Player ${otherPlayer.id} wins`
     return newHand;
   } else if (action.act === 'check') {
     // in the case of a check, the hand ALWAYS advances to the next street
