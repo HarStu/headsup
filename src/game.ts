@@ -45,7 +45,7 @@ type Result = 'undetermined' | 'tie' | 1 | 2
 export type Act = 'check' | 'call' | 'raise' | 'fold'
 
 // possible illegal actions a player can attempt which the UI needs to respond to
-export type illegalAct = 'na' | 'invalid wager'
+export type illegalAct = 'na' | 'invalid wager' | 'invalid call'
 
 // action the player is taking -- Action + a potential wager acount
 type Action = {
@@ -149,7 +149,7 @@ export function generateHand(): Hand {
     board: [],
     street: "preflop",
     pot: 0,
-    previousRaise: 0,
+    previousRaise: 2,
     p1: player1,
     p2: player2,
     actionOn: 2,
@@ -157,6 +157,19 @@ export function generateHand(): Hand {
     context: 'New hand',
     error: 'na',
     history: []
+  }
+
+  // Setup the big blind and little blind
+  if (player1.bigBlind) {
+    player1.stack -= 2
+    player1.totalWager += 2
+    player2.stack -= 1
+    player2.totalWager += 1
+  } else {
+    player2.stack += 2
+    player2.totalWager += 2
+    player1.stack -= 1
+    player1.stack -= 1
   }
 
   return newHand
@@ -189,29 +202,10 @@ export function processAction(hand: Hand, action: Action): Hand {
     return processFold(newHand, livePlayer, otherPlayer)
   } else if (action.act === 'raise') {
     return processRaise(newHand, action.wager, livePlayer, otherPlayer)
-  }
-  /*   
-  else if (action.act === 'check') {
-    // in the case of a check, the hand ALWAYS advances to the next street
-    // *********************************************
-    // THIS IS NOT ACCURATE! I'M THINKING OF A CALL!
-    // *********************************************
-    // this is a little shortcut because we're just playing heads up
-    console.log('Action is check')
-    if (livePlayer.wager === otherPlayer.wager) {
-      newHand.context = `Player ${livePlayer.id} has checked at the ${newHand.street}`
-      return advanceStreet(newHand)
-    } else {
-      newHand.context = `The other player has wagered more than you. Check not allowed.`
-      return newHand
-    }
   } else if (action.act === 'call') {
-    // in the case of a call, the hand also ALWAYS advances EXCEPT during the case where the 
-    // little blind calls the big blind preflop
-  } else if (action.act === 'raise') {
-    // 
+    return processCall(newHand, livePlayer, otherPlayer)
   }
-  */
+
 
   return newHand
 }
@@ -219,6 +213,95 @@ export function processAction(hand: Hand, action: Action): Hand {
 function swapAction(hand: Hand): Hand {
   hand.actionOn == 1 ? hand.actionOn = 2 : hand.actionOn = 1
   return hand
+}
+
+function processCall(hand: Hand, livePlayer: Player, otherPlayer: Player) {
+  // In the case of a call:
+  // Check:
+  // - If we're in preflop
+  //    - Preflop SB calling the BB first-action is the ONLY time the hand won't immediately advance post-call in a headsup game
+  // - If the otherPlayer's totalWager is greater than ours
+  //    - I think it should be impossible to be in a situation where it isn't, but this also catches when they're both 0
+  // Do:
+  // - Subtract the callPrice from livePlayer.stack and add it to livePlayer.totalWager
+  // - If preflop first action 
+  //   - Swap the action
+  // - Otherwise
+  //   - Advance the street
+  if (otherPlayer.totalWager < livePlayer.totalWager) {
+    hand.error = 'invalid call'
+    hand.context = 'cannot call if the other player has not bet more than you!'
+    return hand
+  } else {
+    const callPrice = otherPlayer.totalWager = livePlayer.totalWager
+    livePlayer.stack -= callPrice
+    livePlayer.totalWager += callPrice
+    // TODO -- THIS IS AN EXTREMELY HACKY WAY OF DETERMINING IF WE'RE IN THE FIRST ACTION OF THE HAND
+    // it'll work fine 'for now', but shouldn't be relied on long-term
+    if (livePlayer.totalWager === 1 && otherPlayer.totalWager === 2 && hand.street === 'preflop') {
+      return swapAction(hand)
+    } else {
+      return advanceStreet(hand)
+    }
+  }
+
+}
+
+function processRaise(hand: Hand, wager: number, livePlayer: Player, otherPlayer: Player): Hand {
+  console.log(`entering processRaise with: wager: ${wager}`)
+  // In the case of a raise:
+  // Check:
+  // - that livePlayer has a stack left to raise with at all
+  // - that the wager is greater than or equal to 1
+  // - that the wager does not surpass livePlayer's stack size
+  // - that the raise is greater than or equal to the minimum raise possible
+  //    - raising means wagering above the call amount
+  //    - the amount you wager above the call amount (difference between your stack and the other player's stack)
+  //    - must be at least as much as the previous amount wagered above the call amount (hand.previousRaise)
+  // - that the wager + currentPlayer's totalWager does not surpass the size of otherPlayer's totalWager+stack
+  //    - There's no point in overbetting in headsup, so we just won't allow it
+  //    - actually we'll change this to 
+  // Do:
+  // - increase livePlayer's totalWager by the wager amount
+  // - decrease livePlayer's stack by the wager amount
+  // - change the action
+  // - return the hand
+  const callPrice = otherPlayer.totalWager - livePlayer.totalWager
+  if (livePlayer.stack <= 0) {
+    hand.error = 'invalid wager'
+    hand.context = 'you cannot raise if your stack is empty'
+    return hand
+  }
+  if (wager <= 0) {
+    hand.error = 'invalid wager'
+    hand.context = 'to raise, you need to wager something!'
+    return hand
+  } else if (wager > livePlayer.stack) {
+    hand.error = 'invalid wager'
+    hand.context = 'you cannot raise with more chips than you have in your stack!'
+    return hand
+  } else if (wager < callPrice + hand.previousRaise) {
+    // TODO -- ACCOUNT FOR THE ABILITY TO GO ALL-IN HERE W/ REMAINING CHIPS
+    // probably fine to ignore this for now while getting basic behavior working
+    // - It might actually be fully satified by the calling logic? idk I'll figure that out once i get there
+    hand.error = 'invalid wager'
+    hand.context = `to raise here, you must bet at least ${(callPrice) + hand.previousRaise}, because the previous raise was ${hand.previousRaise}`
+    return hand
+  } else {
+    if (wager + livePlayer.totalWager > otherPlayer.totalWager + otherPlayer.stack) {
+      // The livePlayer cannot actually wager more chips than the otherPlayer has; the excess will simply be returned to them
+      // in this case, change the wager
+      console.log(`Adjusting overbet from ${wager} to ${otherPlayer.totalWager + otherPlayer.stack}`)
+      wager = otherPlayer.totalWager + otherPlayer.stack
+    }
+    // Adjust previousRaise to match this raise
+    hand.previousRaise = wager - callPrice
+    // adjust totalWager and stack
+    livePlayer.totalWager += wager
+    livePlayer.stack -= wager
+    hand.context = `Player ${livePlayer.id} raises ${wager - callPrice} to ${livePlayer.totalWager}`
+    return swapAction(hand)
+  }
 }
 
 function processFold(hand: Hand, livePlayer: Player, otherPlayer: Player): Hand {
@@ -235,59 +318,6 @@ function processFold(hand: Hand, livePlayer: Player, otherPlayer: Player): Hand 
   hand.winner = otherPlayer.id
   hand.context = `Player ${livePlayer.id} has folded at ${hand.street}`
   return hand;
-}
-
-function processRaise(hand: Hand, wager: number, livePlayer: Player, otherPlayer: Player): Hand {
-  console.log(`entering processRaise with: wager: ${wager}`)
-  // In the case of a raise:
-  // Check:
-  // - that livePlayer has a stack left to raise with at all
-  // - that the wager is greater than or equal to 1
-  // - that the wager does not surpass livePlayer's stack size
-  // - that the raise is greater than or equal to the minimum raise possible
-  //    - raising means wagering above the call amount
-  //    - 
-  // - that the wager + currentPlayer's totalWager does not surpass the size of otherPlayer's totalWager+stack
-  //    - There's no point in overbetting in headsup, so we just won't allow it
-  //    - actually we'll change this to 
-  // Do:
-  // - increase livePlayer's totalWager by the wager amount
-  // - decrease livePlayer's stack by the wager amount
-  // - change the action
-  // - return the hand
-  if (livePlayer.stack <= 0) {
-    hand.error = 'invalid wager'
-    hand.context = 'you cannot raise if your stack is empty'
-    return hand
-  }
-  if (wager <= 0) {
-    hand.error = 'invalid wager'
-    hand.context = 'to raise, you need to wager something!'
-    return hand
-  } else if (wager > livePlayer.stack) {
-    hand.error = 'invalid wager'
-    hand.context = 'you cannot raise with more chips than you have in your stack!'
-    return hand
-  } else if (wager < otherPlayer.totalWager - livePlayer.totalWager + hand.previousRaise) {
-    // TODO -- ACCOUNT FOR THE ABILITY TO GO ALL-IN HERE W/ REMAINING CHIPS
-    // probably fine to ignore this for now while getting basic behavior working
-    hand.error = 'invalid wager'
-    hand.context = `to raise here, you must bet at least ${(otherPlayer.totalWager - livePlayer.totalWager) + hand.previousRaise}, because the previous raise was ${hand.previousRaise}`
-    return hand
-  } else {
-    if (wager + livePlayer.totalWager > otherPlayer.totalWager + otherPlayer.stack) {
-      // The livePlayer cannot actually wager more chips than the otherPlayer has; the excess will simply be returned to them
-      // in this case, change the wager
-      console.log(`Adjusting overbet from ${wager} to ${otherPlayer.totalWager + otherPlayer.stack}`)
-      wager = otherPlayer.totalWager + otherPlayer.stack
-    }
-    // Adjust previousRaise to match this raise
-    hand.previousRaise = wager - otherPlayer.totalWager
-    livePlayer.totalWager += wager
-    livePlayer.stack -= wager
-    hand.context = `Player ${livePlayer.id} raises ${wager} to ${livePlayer.totalWager}`
-    return swapAction(hand)
-  }
 }
 
 // Advance the street -- preflop/flop/turn advance, river move onto the showdown
