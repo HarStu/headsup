@@ -246,7 +246,8 @@ function processRaise(hand: Hand, wager: number, livePlayer: Player, otherPlayer
   // - that the wager does not surpass livePlayer's stack size
   // - that the raise is greater than or equal to the minimum raise possible
   //    - raising means wagering above the call amount
-  //    - 
+  //    - the amount you wager above the call amount (difference between your stack and the other player's stack)
+  //    - must be at least as much as the previous amount wagered above the call amount (hand.previousRaise)
   // - that the wager + currentPlayer's totalWager does not surpass the size of otherPlayer's totalWager+stack
   //    - There's no point in overbetting in headsup, so we just won't allow it
   //    - actually we'll change this to 
@@ -255,6 +256,7 @@ function processRaise(hand: Hand, wager: number, livePlayer: Player, otherPlayer
   // - decrease livePlayer's stack by the wager amount
   // - change the action
   // - return the hand
+  const callPrice = otherPlayer.totalWager - livePlayer.totalWager
   if (livePlayer.stack <= 0) {
     hand.error = 'invalid wager'
     hand.context = 'you cannot raise if your stack is empty'
@@ -268,11 +270,12 @@ function processRaise(hand: Hand, wager: number, livePlayer: Player, otherPlayer
     hand.error = 'invalid wager'
     hand.context = 'you cannot raise with more chips than you have in your stack!'
     return hand
-  } else if (wager < otherPlayer.totalWager - livePlayer.totalWager + hand.previousRaise) {
+  } else if (wager < callPrice + hand.previousRaise) {
     // TODO -- ACCOUNT FOR THE ABILITY TO GO ALL-IN HERE W/ REMAINING CHIPS
     // probably fine to ignore this for now while getting basic behavior working
+    // - It might actually be fully satified by the calling logic? idk I'll figure that out once i get there
     hand.error = 'invalid wager'
-    hand.context = `to raise here, you must bet at least ${(otherPlayer.totalWager - livePlayer.totalWager) + hand.previousRaise}, because the previous raise was ${hand.previousRaise}`
+    hand.context = `to raise here, you must bet at least ${(callPrice) + hand.previousRaise}, because the previous raise was ${hand.previousRaise}`
     return hand
   } else {
     if (wager + livePlayer.totalWager > otherPlayer.totalWager + otherPlayer.stack) {
@@ -282,10 +285,11 @@ function processRaise(hand: Hand, wager: number, livePlayer: Player, otherPlayer
       wager = otherPlayer.totalWager + otherPlayer.stack
     }
     // Adjust previousRaise to match this raise
-    hand.previousRaise = wager - otherPlayer.totalWager
+    hand.previousRaise = wager - callPrice
+    // adjust totalWager and stack
     livePlayer.totalWager += wager
     livePlayer.stack -= wager
-    hand.context = `Player ${livePlayer.id} raises ${wager} to ${livePlayer.totalWager}`
+    hand.context = `Player ${livePlayer.id} raises ${wager - callPrice} to ${livePlayer.totalWager}`
     return swapAction(hand)
   }
 }
