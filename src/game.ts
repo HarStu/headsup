@@ -260,12 +260,13 @@ function processCall(hand: Hand, livePlayer: Player, otherPlayer: Player) {
   //   - Swap the action
   // - Otherwise
   //   - Advance the street
-  if (otherPlayer.totalWager < livePlayer.totalWager) {
+  if (otherPlayer.totalWager <= livePlayer.totalWager) {
     hand.error = 'invalid call'
     hand.context = 'cannot call if the other player has not bet more than you!'
     return hand
   } else {
     const callPrice = otherPlayer.totalWager - livePlayer.totalWager
+    hand.context = `Player ${livePlayer.id} adds ${callPrice} to their wager to call ${otherPlayer.totalWager}`
     // TODO -- THIS IS AN EXTREMELY HACKY WAY OF DETERMINING IF WE'RE IN THE FIRST ACTION OF THE HAND
     // it'll work fine 'for now', but shouldn't be relied on long-term
     if (livePlayer.totalWager === 1 && otherPlayer.totalWager === 2 && hand.street === 'preflop') {
@@ -332,7 +333,7 @@ function processRaise(hand: Hand, wager: number, livePlayer: Player, otherPlayer
     // adjust totalWager and stack
     livePlayer.totalWager += wager
     livePlayer.stack -= wager
-    hand.context = `Player ${livePlayer.id} raises ${wager - callPrice} to ${livePlayer.totalWager}`
+    hand.context = `Player ${livePlayer.id} raises ${wager} to ${livePlayer.totalWager}`
     return swapAction(hand)
   }
 }
@@ -360,6 +361,11 @@ function advanceStreet(hand: Hand): Hand {
   hand.p1.totalWager = 0;
   hand.pot += hand.p2.totalWager;
   hand.p2.totalWager = 0;
+
+  // Reset the previousRaise to the size of the BB (curently harded as 2)
+  // TODO -- make the BB not-hardcoded? I guess I gotta decide if the values
+  // used here are BB values or chip values
+  hand.previousRaise = 2
 
   // Set who's first to act next street based on who's the big blind
   // After the preflop, the (former) big blind is always the first to act
