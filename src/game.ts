@@ -149,7 +149,7 @@ export function generateHand(): Hand {
     board: [],
     street: "preflop",
     pot: 0,
-    previousRaise: 0,
+    previousRaise: 2,
     p1: player1,
     p2: player2,
     actionOn: 2,
@@ -157,6 +157,19 @@ export function generateHand(): Hand {
     context: 'New hand',
     error: 'na',
     history: []
+  }
+
+  // Setup the big blind and little blind
+  if (player1.bigBlind) {
+    player1.stack -= 2
+    player1.totalWager += 2
+    player2.stack -= 1
+    player2.totalWager += 1
+  } else {
+    player2.stack += 2
+    player2.totalWager += 2
+    player1.stack -= 1
+    player1.stack -= 1
   }
 
   return newHand
@@ -221,6 +234,9 @@ function swapAction(hand: Hand): Hand {
   return hand
 }
 
+function processCall(hand: Hand, livePlayer: Player, otherPlayer: Player) {
+  // In the case of a call:
+}
 
 function processRaise(hand: Hand, wager: number, livePlayer: Player, otherPlayer: Player): Hand {
   console.log(`entering processRaise with: wager: ${wager}`)
