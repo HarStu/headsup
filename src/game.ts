@@ -221,21 +221,6 @@ function swapAction(hand: Hand): Hand {
   return hand
 }
 
-function processFold(hand: Hand, livePlayer: Player, otherPlayer: Player): Hand {
-  // In the case of a fold:
-  // Check: 
-  // - nothing
-  // Do:
-  // - set winner to otherPlayer
-  // - set context
-  // - return hand
-
-  otherPlayer.stack += livePlayer.totalWager
-  livePlayer.totalWager
-  hand.winner = otherPlayer.id
-  hand.context = `Player ${livePlayer.id} has folded at ${hand.street}`
-  return hand;
-}
 
 function processRaise(hand: Hand, wager: number, livePlayer: Player, otherPlayer: Player): Hand {
   console.log(`entering processRaise with: wager: ${wager}`)
@@ -292,6 +277,22 @@ function processRaise(hand: Hand, wager: number, livePlayer: Player, otherPlayer
     hand.context = `Player ${livePlayer.id} raises ${wager - callPrice} to ${livePlayer.totalWager}`
     return swapAction(hand)
   }
+}
+
+function processFold(hand: Hand, livePlayer: Player, otherPlayer: Player): Hand {
+  // In the case of a fold:
+  // Check: 
+  // - nothing
+  // Do:
+  // - set winner to otherPlayer
+  // - set context
+  // - return hand
+
+  otherPlayer.stack += livePlayer.totalWager
+  livePlayer.totalWager
+  hand.winner = otherPlayer.id
+  hand.context = `Player ${livePlayer.id} has folded at ${hand.street}`
+  return hand;
 }
 
 // Advance the street -- preflop/flop/turn advance, river move onto the showdown
