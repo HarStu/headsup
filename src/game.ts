@@ -355,38 +355,33 @@ function processFold(hand: Hand, livePlayer: Player, otherPlayer: Player): Hand 
 
 // Advance the street -- preflop/flop/turn advance, river move onto the showdown
 function advanceStreet(hand: Hand): Hand {
-  let newHand: Hand = structuredClone(hand);
-
   // Move both player's money into the pot 
-  newHand.pot += newHand.p1.totalWager;
-  newHand.p1.totalWager = 0;
-  newHand.pot += newHand.p2.totalWager;
-  newHand.p2.totalWager = 0;
+  hand.pot += hand.p1.totalWager;
+  hand.p1.totalWager = 0;
+  hand.pot += hand.p2.totalWager;
+  hand.p2.totalWager = 0;
 
   // Set who's first to act next street based on who's the big blind
   // After the preflop, the (former) big blind is always the first to act
-  newHand.p1.bigBlind ? newHand.actionOn = 1 : newHand.actionOn = 2;
+  hand.p1.bigBlind ? hand.actionOn = 1 : hand.actionOn = 2;
 
   // draw new cards/advance to the next street
-  if (newHand.street === 'preflop') {
-    newHand.board = [newHand.deck.pop()!, newHand.deck.pop()!, newHand.deck.pop()!]
-    newHand.street = 'flop';
-  } else if (newHand.street === 'flop' || newHand.street === 'turn') {
-    newHand.board.push(newHand.deck.pop()!)
-    newHand.street === 'flop' ? newHand.street = 'turn' : newHand.street = 'river';
-  } else if (newHand.street === 'river') {
-    return showdown(newHand)
+  if (hand.street === 'preflop') {
+    hand.board = [hand.deck.pop()!, hand.deck.pop()!, hand.deck.pop()!]
+    hand.street = 'flop';
+  } else if (hand.street === 'flop' || hand.street === 'turn') {
+    hand.board.push(hand.deck.pop()!)
+    hand.street === 'flop' ? hand.street = 'turn' : hand.street = 'river';
+  } else if (hand.street === 'river') {
+    return showdown(hand)
   }
-
-  return newHand
+  return hand
 }
 
 // calculate a showdown
 function showdown(hand: Hand): Hand {
-  let newHand = structuredClone(hand)
+  hand.winner = 'tie'
+  hand.context = 'SHOWDOWN RESULT PLACEHOLDER!'
 
-  newHand.winner = 'tie'
-  newHand.context = 'SHOWDOWN RESULT PLACEHOLDER!'
-
-  return newHand
+  return hand
 }
