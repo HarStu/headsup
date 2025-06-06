@@ -45,7 +45,7 @@ type Result = 'undetermined' | 'tie' | 1 | 2
 export type Act = 'check' | 'call' | 'raise' | 'fold'
 
 // possible illegal actions a player can attempt which the UI needs to respond to
-export type illegalAct = 'na' | 'invalid wager' | 'invalid call'
+export type illegalAct = 'na' | 'invalid wager' | 'invalid call' | 'invalid check'
 
 // action the player is taking -- Action + a potential wager acount
 type Action = {
@@ -169,7 +169,7 @@ export function generateHand(): Hand {
     player2.stack += 2
     player2.totalWager += 2
     player1.stack -= 1
-    player1.stack -= 1
+    player1.totalWager -= 1
   }
 
   return newHand
@@ -204,8 +204,9 @@ export function processAction(hand: Hand, action: Action): Hand {
     return processRaise(newHand, action.wager, livePlayer, otherPlayer)
   } else if (action.act === 'call') {
     return processCall(newHand, livePlayer, otherPlayer)
+  } else if (action.act === 'check') {
+    return processCheck(newHand, livePlayer, otherPlayer)
   }
-
 
   return newHand
 }
@@ -213,6 +214,37 @@ export function processAction(hand: Hand, action: Action): Hand {
 function swapAction(hand: Hand): Hand {
   hand.actionOn == 1 ? hand.actionOn = 2 : hand.actionOn = 1
   return hand
+}
+
+function processCheck(hand: Hand, livePlayer: Player, otherPlayer: Player) {
+  // In the case of a check: (checking is very limited headsup, so we're using this to our advantage to cheat a bit)
+  // Check (hehe):
+  // - Is otherPlayer.totalWager > livePlayer.totalWager
+  //   - If so, check is never possible
+  // - Are we preflop or postflop
+  // - Are we BB or SB
+  // Do:
+  // - If preflop BB
+  //   - Advance street
+  // - If postflop
+  //   - If BB
+  //     - Swap action
+  //   - If SB
+  //     - Advance street
+  if (otherPlayer.totalWager > livePlayer.totalWager) {
+    hand.error = 'invalid check'
+    hand.context = "the other player has bet more than you, you cannot check"
+    return hand
+  } else {
+    hand.context = `player ${livePlayer.id} has checked`
+    if (hand.street == 'preflop' && livePlayer.bigBlind) {
+      return advanceStreet(hand)
+    } else if (livePlayer.bigBlind) {
+      return swapAction(hand)
+    } else {
+      return advanceStreet(hand)
+    }
+  }
 }
 
 function processCall(hand: Hand, livePlayer: Player, otherPlayer: Player) {
@@ -224,7 +256,7 @@ function processCall(hand: Hand, livePlayer: Player, otherPlayer: Player) {
   //    - I think it should be impossible to be in a situation where it isn't, but this also catches when they're both 0
   // Do:
   // - Subtract the callPrice from livePlayer.stack and add it to livePlayer.totalWager
-  // - If preflop first action 
+  // - If preflop SB first action
   //   - Swap the action
   // - Otherwise
   //   - Advance the street
@@ -233,18 +265,19 @@ function processCall(hand: Hand, livePlayer: Player, otherPlayer: Player) {
     hand.context = 'cannot call if the other player has not bet more than you!'
     return hand
   } else {
-    const callPrice = otherPlayer.totalWager = livePlayer.totalWager
-    livePlayer.stack -= callPrice
-    livePlayer.totalWager += callPrice
+    const callPrice = otherPlayer.totalWager - livePlayer.totalWager
     // TODO -- THIS IS AN EXTREMELY HACKY WAY OF DETERMINING IF WE'RE IN THE FIRST ACTION OF THE HAND
     // it'll work fine 'for now', but shouldn't be relied on long-term
     if (livePlayer.totalWager === 1 && otherPlayer.totalWager === 2 && hand.street === 'preflop') {
+      livePlayer.stack -= callPrice
+      livePlayer.totalWager += callPrice
       return swapAction(hand)
     } else {
+      livePlayer.stack -= callPrice
+      livePlayer.totalWager += callPrice
       return advanceStreet(hand)
     }
   }
-
 }
 
 function processRaise(hand: Hand, wager: number, livePlayer: Player, otherPlayer: Player): Hand {
@@ -322,38 +355,33 @@ function processFold(hand: Hand, livePlayer: Player, otherPlayer: Player): Hand 
 
 // Advance the street -- preflop/flop/turn advance, river move onto the showdown
 function advanceStreet(hand: Hand): Hand {
-  let newHand: Hand = structuredClone(hand);
-
   // Move both player's money into the pot 
-  newHand.pot += newHand.p1.totalWager;
-  newHand.p1.totalWager = 0;
-  newHand.pot += newHand.p2.totalWager;
-  newHand.p2.totalWager = 0;
+  hand.pot += hand.p1.totalWager;
+  hand.p1.totalWager = 0;
+  hand.pot += hand.p2.totalWager;
+  hand.p2.totalWager = 0;
 
   // Set who's first to act next street based on who's the big blind
   // After the preflop, the (former) big blind is always the first to act
-  newHand.p1.bigBlind ? newHand.actionOn = 1 : newHand.actionOn = 2;
+  hand.p1.bigBlind ? hand.actionOn = 1 : hand.actionOn = 2;
 
   // draw new cards/advance to the next street
-  if (newHand.street === 'preflop') {
-    newHand.board = [newHand.deck.pop()!, newHand.deck.pop()!, newHand.deck.pop()!]
-    newHand.street = 'flop';
-  } else if (newHand.street === 'flop' || newHand.street === 'turn') {
-    newHand.board.push(newHand.deck.pop()!)
-    newHand.street === 'flop' ? newHand.street = 'turn' : newHand.street = 'river';
-  } else if (newHand.street === 'river') {
-    return showdown(newHand)
+  if (hand.street === 'preflop') {
+    hand.board = [hand.deck.pop()!, hand.deck.pop()!, hand.deck.pop()!]
+    hand.street = 'flop';
+  } else if (hand.street === 'flop' || hand.street === 'turn') {
+    hand.board.push(hand.deck.pop()!)
+    hand.street === 'flop' ? hand.street = 'turn' : hand.street = 'river';
+  } else if (hand.street === 'river') {
+    return showdown(hand)
   }
-
-  return newHand
+  return hand
 }
 
 // calculate a showdown
 function showdown(hand: Hand): Hand {
-  let newHand = structuredClone(hand)
+  hand.winner = 'tie'
+  hand.context = 'SHOWDOWN RESULT PLACEHOLDER!'
 
-  newHand.winner = 'tie'
-  newHand.context = 'SHOWDOWN RESULT PLACEHOLDER!'
-
-  return newHand
+  return hand
 }
