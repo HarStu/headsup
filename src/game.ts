@@ -32,8 +32,8 @@ type Player = {
   holeCards: HoleCards
   // the amount of money the player has to gamble with
   stack: number
-  // the amount of money the player has wagered on the current street
-  wager: number
+  // the total amount of money the player has wagered on the current street
+  totalWager: number
   // is the player currently the big blind? (if not, they're default the small blind, since this is heads-up poker)
   bigBlind: boolean
 }
@@ -44,10 +44,21 @@ type Result = 'undetermined' | 'tie' | 1 | 2
 // categories of action which can be taken on a player's turn
 export type Act = 'check' | 'call' | 'raise' | 'fold'
 
+// possible illegal actions a player can attempt which the UI needs to respond to
+export type illegalAct = 'na' | 'invalid wager'
+
 // action the player is taking -- Action + a potential wager acount
 type Action = {
   act: Act
   wager: number
+}
+
+// a recording of a previous action
+type ActionLog = {
+  player: ActionOn
+  act: Act
+  wager: number
+  street: Street
 }
 
 // a Hand is a round of play
@@ -60,6 +71,8 @@ export type Hand = {
   street: Street
   // the total amount bet on previous streets
   pot: number
+  // the size of the previous Raise
+  previousRaise: number
   // player 1
   p1: Player
   // player 2
@@ -70,6 +83,10 @@ export type Hand = {
   winner: Result
   // Contextual information describing what the last action taken was
   context: String
+  // Feedback to use in response to illegal actions
+  error: illegalAct
+  // collection of ActionLogs which make up the hand
+  history: ActionLog[]
 }
 
 // return a shuffled Deck
@@ -115,7 +132,7 @@ export function generateHand(): Hand {
     id: 1,
     holeCards: [card1, card3],
     stack: 100,
-    wager: 0,
+    totalWager: 0,
     bigBlind: true
   }
 
@@ -123,8 +140,8 @@ export function generateHand(): Hand {
     id: 2,
     holeCards: [card2, card4],
     stack: 100,
-    wager: 0,
-    bigBlind: true
+    totalWager: 0,
+    bigBlind: false
   }
 
   const newHand: Hand = {
@@ -132,20 +149,27 @@ export function generateHand(): Hand {
     board: [],
     street: "preflop",
     pot: 0,
+    previousRaise: 0,
     p1: player1,
     p2: player2,
     actionOn: 2,
     winner: 'undetermined',
-    context: 'New hand'
+    context: 'New hand',
+    error: 'na',
+    history: []
   }
 
   return newHand
 }
 
+
 // Process a player's action and return the new state of the Hand
 export function processAction(hand: Hand, action: Action): Hand {
   console.log('Making clone')
   let newHand: Hand = structuredClone(hand);
+
+  // reset the error code, it should only re-appear if another illegal action is attempted
+  newHand.error = 'na'
 
   // create shorthand pointer to the 'live player' vs the 'other player', based on who the action is on
   let livePlayer: Player;
@@ -160,25 +184,110 @@ export function processAction(hand: Hand, action: Action): Hand {
     otherPlayer = newHand.p1;
   }
 
+  // resolve the action
   if (action.act === 'fold') {
-    // in the case of a fold, the other player immediately wins the hand
-    console.log('Action is fold')
-    newHand.winner = otherPlayer.id
-    newHand.context = `Player ${livePlayer.id} has folded. Player ${otherPlayer.id} wins`
-    return newHand;
-  } else if (action.act === 'check') {
+    return processFold(newHand, livePlayer, otherPlayer)
+  } else if (action.act === 'raise') {
+    return processRaise(newHand, action.wager, livePlayer, otherPlayer)
+  }
+  /*   
+  else if (action.act === 'check') {
     // in the case of a check, the hand ALWAYS advances to the next street
+    // *********************************************
+    // THIS IS NOT ACCURATE! I'M THINKING OF A CALL!
+    // *********************************************
     // this is a little shortcut because we're just playing heads up
     console.log('Action is check')
     if (livePlayer.wager === otherPlayer.wager) {
-
+      newHand.context = `Player ${livePlayer.id} has checked at the ${newHand.street}`
+      return advanceStreet(newHand)
     } else {
-      newHand.context = `Check not allowed here`
+      newHand.context = `The other player has wagered more than you. Check not allowed.`
       return newHand
     }
+  } else if (action.act === 'call') {
+    // in the case of a call, the hand also ALWAYS advances EXCEPT during the case where the 
+    // little blind calls the big blind preflop
+  } else if (action.act === 'raise') {
+    // 
   }
+  */
 
   return newHand
+}
+
+function swapAction(hand: Hand): Hand {
+  hand.actionOn == 1 ? hand.actionOn = 2 : hand.actionOn = 1
+  return hand
+}
+
+function processFold(hand: Hand, livePlayer: Player, otherPlayer: Player): Hand {
+  // In the case of a fold:
+  // Check: 
+  // - nothing
+  // Do:
+  // - set winner to otherPlayer
+  // - set context
+  // - return hand
+
+  otherPlayer.stack += livePlayer.totalWager
+  livePlayer.totalWager
+  hand.winner = otherPlayer.id
+  hand.context = `Player ${livePlayer.id} has folded at ${hand.street}`
+  return hand;
+}
+
+function processRaise(hand: Hand, wager: number, livePlayer: Player, otherPlayer: Player): Hand {
+  console.log(`entering processRaise with: wager: ${wager}`)
+  // In the case of a raise:
+  // Check:
+  // - that livePlayer has a stack left to raise with at all
+  // - that the wager is greater than or equal to 1
+  // - that the wager does not surpass livePlayer's stack size
+  // - that the raise is greater than or equal to the minimum raise possible
+  //    - raising means wagering above the call amount
+  //    - 
+  // - that the wager + currentPlayer's totalWager does not surpass the size of otherPlayer's totalWager+stack
+  //    - There's no point in overbetting in headsup, so we just won't allow it
+  //    - actually we'll change this to 
+  // Do:
+  // - increase livePlayer's totalWager by the wager amount
+  // - decrease livePlayer's stack by the wager amount
+  // - change the action
+  // - return the hand
+  if (livePlayer.stack <= 0) {
+    hand.error = 'invalid wager'
+    hand.context = 'you cannot raise if your stack is empty'
+    return hand
+  }
+  if (wager <= 0) {
+    hand.error = 'invalid wager'
+    hand.context = 'to raise, you need to wager something!'
+    return hand
+  } else if (wager > livePlayer.stack) {
+    hand.error = 'invalid wager'
+    hand.context = 'you cannot raise with more chips than you have in your stack!'
+    return hand
+  } else if (wager < otherPlayer.totalWager - livePlayer.totalWager + hand.previousRaise) {
+    // TODO -- ACCOUNT FOR THE ABILITY TO GO ALL-IN HERE W/ REMAINING CHIPS
+    // probably fine to ignore this for now while getting basic behavior working
+    hand.error = 'invalid wager'
+    hand.context = `to raise here, you must bet at least ${(otherPlayer.totalWager - livePlayer.totalWager) + hand.previousRaise}, because the previous raise was ${hand.previousRaise}`
+    return hand
+  } else {
+    if (wager + livePlayer.totalWager > otherPlayer.totalWager + otherPlayer.stack) {
+      // The livePlayer cannot actually wager more chips than the otherPlayer has; the excess will simply be returned to them
+      // in this case, change the wager
+      console.log(`Adjusting overbet from ${wager} to ${otherPlayer.totalWager + otherPlayer.stack}`)
+      wager = otherPlayer.totalWager + otherPlayer.stack
+    }
+    // Adjust previousRaise to match this raise
+    hand.previousRaise = wager - otherPlayer.totalWager
+    livePlayer.totalWager += wager
+    livePlayer.stack -= wager
+    hand.context = `Player ${livePlayer.id} raises ${wager} to ${livePlayer.totalWager}`
+    return swapAction(hand)
+  }
 }
 
 // Advance the street -- preflop/flop/turn advance, river move onto the showdown
@@ -186,16 +295,16 @@ function advanceStreet(hand: Hand): Hand {
   let newHand: Hand = structuredClone(hand);
 
   // Move both player's money into the pot 
-  newHand.pot += newHand.p1.wager;
-  newHand.p1.wager = 0;
-  newHand.pot += newHand.p2.wager;
-  newHand.p2.wager = 0;
+  newHand.pot += newHand.p1.totalWager;
+  newHand.p1.totalWager = 0;
+  newHand.pot += newHand.p2.totalWager;
+  newHand.p2.totalWager = 0;
 
   // Set who's first to act next street based on who's the big blind
   // After the preflop, the (former) big blind is always the first to act
   newHand.p1.bigBlind ? newHand.actionOn = 1 : newHand.actionOn = 2;
 
-  // draw new cards/advance to the 
+  // draw new cards/advance to the next street
   if (newHand.street === 'preflop') {
     newHand.board = [newHand.deck.pop()!, newHand.deck.pop()!, newHand.deck.pop()!]
     newHand.street = 'flop';
@@ -203,8 +312,7 @@ function advanceStreet(hand: Hand): Hand {
     newHand.board.push(newHand.deck.pop()!)
     newHand.street === 'flop' ? newHand.street = 'turn' : newHand.street = 'river';
   } else if (newHand.street === 'river') {
-    // PLACEHOLDER
-    console.log('showdown placeholder')
+    return showdown(newHand)
   }
 
   return newHand
@@ -215,7 +323,7 @@ function showdown(hand: Hand): Hand {
   let newHand = structuredClone(hand)
 
   newHand.winner = 'tie'
-  newHand.context = 'tie -- this is just a placeholder right now!'
+  newHand.context = 'SHOWDOWN RESULT PLACEHOLDER!'
 
   return newHand
 }
