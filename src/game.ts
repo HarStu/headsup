@@ -45,7 +45,7 @@ type Result = 'undetermined' | 'tie' | 1 | 2
 export type Act = 'check' | 'call' | 'raise' | 'fold'
 
 // possible illegal actions a player can attempt which the UI needs to respond to
-export type illegalAct = 'na' | 'invalid wager'
+export type illegalAct = 'na' | 'invalid wager' | 'invalid call'
 
 // action the player is taking -- Action + a potential wager acount
 type Action = {
@@ -202,29 +202,10 @@ export function processAction(hand: Hand, action: Action): Hand {
     return processFold(newHand, livePlayer, otherPlayer)
   } else if (action.act === 'raise') {
     return processRaise(newHand, action.wager, livePlayer, otherPlayer)
-  }
-  /*   
-  else if (action.act === 'check') {
-    // in the case of a check, the hand ALWAYS advances to the next street
-    // *********************************************
-    // THIS IS NOT ACCURATE! I'M THINKING OF A CALL!
-    // *********************************************
-    // this is a little shortcut because we're just playing heads up
-    console.log('Action is check')
-    if (livePlayer.wager === otherPlayer.wager) {
-      newHand.context = `Player ${livePlayer.id} has checked at the ${newHand.street}`
-      return advanceStreet(newHand)
-    } else {
-      newHand.context = `The other player has wagered more than you. Check not allowed.`
-      return newHand
-    }
   } else if (action.act === 'call') {
-    // in the case of a call, the hand also ALWAYS advances EXCEPT during the case where the 
-    // little blind calls the big blind preflop
-  } else if (action.act === 'raise') {
-    // 
+    return processCall(newHand, livePlayer, otherPlayer)
   }
-  */
+
 
   return newHand
 }
@@ -236,6 +217,34 @@ function swapAction(hand: Hand): Hand {
 
 function processCall(hand: Hand, livePlayer: Player, otherPlayer: Player) {
   // In the case of a call:
+  // Check:
+  // - If we're in preflop
+  //    - Preflop SB calling the BB first-action is the ONLY time the hand won't immediately advance post-call in a headsup game
+  // - If the otherPlayer's totalWager is greater than ours
+  //    - I think it should be impossible to be in a situation where it isn't, but this also catches when they're both 0
+  // Do:
+  // - Subtract the callPrice from livePlayer.stack and add it to livePlayer.totalWager
+  // - If preflop first action 
+  //   - Swap the action
+  // - Otherwise
+  //   - Advance the street
+  if (otherPlayer.totalWager < livePlayer.totalWager) {
+    hand.error = 'invalid call'
+    hand.context = 'cannot call if the other player has not bet more than you!'
+    return hand
+  } else {
+    const callPrice = otherPlayer.totalWager = livePlayer.totalWager
+    livePlayer.stack -= callPrice
+    livePlayer.totalWager += callPrice
+    // TODO -- THIS IS AN EXTREMELY HACKY WAY OF DETERMINING IF WE'RE IN THE FIRST ACTION OF THE HAND
+    // it'll work fine 'for now', but shouldn't be relied on long-term
+    if (livePlayer.totalWager === 1 && otherPlayer.totalWager === 2 && hand.street === 'preflop') {
+      return swapAction(hand)
+    } else {
+      return advanceStreet(hand)
+    }
+  }
+
 }
 
 function processRaise(hand: Hand, wager: number, livePlayer: Player, otherPlayer: Player): Hand {
