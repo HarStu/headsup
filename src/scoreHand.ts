@@ -31,9 +31,9 @@ export type HandRank = typeof HandRanks[keyof typeof HandRanks]
 
 // handScore
 export type HandScore = {
-  handRank: HandRank
-  cardRank: Rank[]
-  kickers?: Card[]
+  handRank: HandRank // What rank is this hand?
+  cardRank: Rank[]   // What cardRank is this hand associated with? (i.e, 10-high flush)
+  leftovers?: Card[]   // What cards are leftover after making this hand?
 }
 
 function scoreHand(board: Board, holeCards: HoleCards): HandScore {
@@ -44,6 +44,50 @@ function scoreHand(board: Board, holeCards: HoleCards): HandScore {
 
   return checkHighCard(cards)
 }
+
+// checkStraight function 
+export function checkStraight(cards: Card[]): HandScore | false {
+  // Cards already arrive here in descending rank order, which helps a lot 
+  // Set a flag that confirms if we have an Ace or not (will need later for wheel straights)
+  const aceFlag = cards[0].rank === 14
+
+  let count = 1
+  let firstRank = cards[0].rank
+  for (let i = 1; i < cards.length; i++) {
+    const card = cards[i]
+    if (card.rank === cards[i - 1].rank - 1) {
+      // Check if the card rank is one below the preceeding card
+      // If so, the straight is continuing
+      count++
+    } else if (!(card.rank === cards[i - 1].rank - 1)) {
+      // Otherwise, if the card doesn't equal the rank of the proceeding card (in which case nothing happens)
+      // the straight is not continuing, reset the count and the new card here
+      count = 1
+      firstRank = card.rank
+    }
+    // Break out when we find a straight. 
+    // Since we're working down, breaking early means breaking with the highest straight
+    if (count === 5) {
+      break;
+    }
+  }
+
+  if (count >= 5) {
+    return {
+      handRank: HandRanks.Straight,
+      cardRank: [firstRank]
+    }
+  } else if (count === 4 && firstRank === 5 && aceFlag) {
+    // special case for wheel straights
+    return {
+      handRank: HandRanks.Straight,
+      cardRank: [firstRank]
+    }
+  } else {
+    return false
+  }
+}
+
 
 // checkPair function can be configured to check for pairs, three-of-a-kind (threepair), or four-of-a-king (fourpair)
 // default is pairs though
@@ -72,7 +116,7 @@ export function checkPair(cards: Card[], pairCount: 2 | 3 | 4 = 2): HandScore | 
     return {
       handRank: seekingRank,
       cardRank: [highestPair],
-      kickers: cards.filter((card) => card.rank !== highestPair)
+      leftovers: cards.filter((card) => card.rank !== highestPair).slice(5 - pairCount)
     }
   } else {
     return false;
@@ -84,7 +128,7 @@ function checkHighCard(cards: Card[]): HandScore {
   const handScore = {
     handRank: HandRanks.HighCard,
     cardRank: [cards[0].rank],
-    kickers: cards.slice(1)
+    leftovers: cards.slice(1)
   }
   return handScore
 }
