@@ -16,7 +16,7 @@ export type HoleCards = [Card, Card]
 export type Board = Card[]
 
 // hand ranks
-export const HandRank = {
+export const HandRanks = {
   HighCard: 0,
   Pair: 1,
   TwoPair: 2,
@@ -27,13 +27,13 @@ export const HandRank = {
   FourPair: 7,
   StraightFlush: 8
 }
-export type HandRank = typeof HandRank[keyof typeof HandRank]
+export type HandRank = typeof HandRanks[keyof typeof HandRanks]
 
 // handScore
 export type HandScore = {
   handRank: HandRank
   cardRank: Rank[]
-  kickers?: Rank[]
+  kickers?: Card[]
 }
 
 function scoreHand(board: Board, holeCards: HoleCards): HandScore {
@@ -42,19 +42,49 @@ function scoreHand(board: Board, holeCards: HoleCards): HandScore {
   // If not, proceed to the next one 
   const cards: Card[] = [...board, ...holeCards].sort((a, b) => a.rank - b.rank)
 
-  if (false) {
+  return checkHighCard(cards)
+}
 
+// checkPair function can be configured to check for pairs, three-of-a-kind (threepair), or four-of-a-king (fourpair)
+// default is pairs though
+export function checkPair(cards: Card[], pairCount: 2 | 3 | 4 = 2): HandScore | false {
+  let highestPair: Rank | undefined = undefined;
+
+  // set the rank we're seeking based on the pairCount
+  let seekingRank = [HandRanks.Pair, HandRanks.ThreePair, HandRanks.FourPair][pairCount - 2]
+
+  const rankCounts = new Map<Rank, number>();
+
+  // get a count of how many cards of each rank we're looking at 
+  for (let card of cards) {
+    rankCounts.set(card.rank, (rankCounts.get(card.rank) ?? 0) + 1)
+  }
+
+  // check for the highest value pair of the size we're looking for
+  for (const [rank, count] of rankCounts) {
+    if (count >= pairCount && (rank > (highestPair ?? 0))) {
+      highestPair = rank
+    }
+  }
+
+  // return what we found, or nothing if we found nothing 
+  if (highestPair) {
+    return {
+      handRank: seekingRank,
+      cardRank: [highestPair],
+      kickers: cards.filter((card) => card.rank !== highestPair)
+    }
   } else {
-    return checkHighCard(cards)
+    return false;
   }
 }
 
 function checkHighCard(cards: Card[]): HandScore {
   // Every single hand will have a highcard, so we can always return a HandScore
   const handScore = {
-    handRank: HandRank.HighCard,
+    handRank: HandRanks.HighCard,
     cardRank: [cards[0].rank],
-    kickers: cards.slice(1).map((card) => card.rank)
+    kickers: cards.slice(1)
   }
   return handScore
 }
