@@ -1,22 +1,7 @@
-// Four suits, hearts diamonds clubs spades
-type Suit = 'h' | 'd' | 'c' | 's'
-// ranks from 2-14, with 11 being jack, 12 being queen, 13 being king, and 14 being ace
-type Rank = 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14
-
-// each card has a suit and a rank
-type Card = {
-  rank: Rank;
-  suit: Suit;
-}
+import type { Suit, Rank, Card, HoleCards, Board } from './scoreHand'
 
 // a deck is an array of cards
 type Deck = Card[]
-
-// Hole Cards are a player's two private cards
-type HoleCards = [Card, Card]
-
-// the board is the cards which are available to both players
-type Board = Card[]
 
 // the street refers to the current round of play. More cards are added to the board as play continues.
 type Street = 'preflop' | 'flop' | 'turn' | 'river'
@@ -260,12 +245,13 @@ function processCall(hand: Hand, livePlayer: Player, otherPlayer: Player) {
   //   - Swap the action
   // - Otherwise
   //   - Advance the street
-  if (otherPlayer.totalWager < livePlayer.totalWager) {
+  if (otherPlayer.totalWager <= livePlayer.totalWager) {
     hand.error = 'invalid call'
     hand.context = 'cannot call if the other player has not bet more than you!'
     return hand
   } else {
     const callPrice = otherPlayer.totalWager - livePlayer.totalWager
+    hand.context = `Player ${livePlayer.id} adds ${callPrice} to their wager to call ${otherPlayer.totalWager}`
     // TODO -- THIS IS AN EXTREMELY HACKY WAY OF DETERMINING IF WE'RE IN THE FIRST ACTION OF THE HAND
     // it'll work fine 'for now', but shouldn't be relied on long-term
     if (livePlayer.totalWager === 1 && otherPlayer.totalWager === 2 && hand.street === 'preflop') {
@@ -332,7 +318,7 @@ function processRaise(hand: Hand, wager: number, livePlayer: Player, otherPlayer
     // adjust totalWager and stack
     livePlayer.totalWager += wager
     livePlayer.stack -= wager
-    hand.context = `Player ${livePlayer.id} raises ${wager - callPrice} to ${livePlayer.totalWager}`
+    hand.context = `Player ${livePlayer.id} raises ${wager} to ${livePlayer.totalWager}`
     return swapAction(hand)
   }
 }
@@ -360,6 +346,11 @@ function advanceStreet(hand: Hand): Hand {
   hand.p1.totalWager = 0;
   hand.pot += hand.p2.totalWager;
   hand.p2.totalWager = 0;
+
+  // Reset the previousRaise to the size of the BB (curently harded as 2)
+  // TODO -- make the BB not-hardcoded? I guess I gotta decide if the values
+  // used here are BB values or chip values
+  hand.previousRaise = 2
 
   // Set who's first to act next street based on who's the big blind
   // After the preflop, the (former) big blind is always the first to act
