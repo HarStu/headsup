@@ -51,20 +51,24 @@ export function checkStraight(cards: Card[]): HandScore | false {
   // Cards already arrive here in descending rank order, which helps a lot 
   // Set a flag that confirms if we have an Ace or not (will need later for wheel straights)
   const aceFlag = cards[0].rank === 14
+  const wheelAce = cards[0]
 
   let count = 1
   let firstRank = cards[0].rank
+  let straightCards = cards.slice(1)
   for (let i = 1; i < cards.length; i++) {
     const card = cards[i]
     if (card.rank === cards[i - 1].rank - 1) {
       // Check if the card rank is one below the preceeding card
       // If so, the straight is continuing
       count++
+      straightCards.push(cards[i])
     } else if (!(card.rank === cards[i - 1].rank - 1)) {
       // Otherwise, (assuming the card doesn't equal the rank of the proceeding card (in which case nothing happens))
       // we know that the straight is not continuing, reset the count and the new card here
       count = 1
       firstRank = card.rank
+      straightCards = [cards[i]]
     }
     // Break out when we find a straight. 
     // Since we're working down, breaking early means breaking with the highest straight
@@ -76,13 +80,17 @@ export function checkStraight(cards: Card[]): HandScore | false {
   if (count >= 5) {
     return {
       handRank: HandRanks.Straight,
-      cardRank: [firstRank]
+      cardRank: [firstRank],
+      usedCards: straightCards,
+      leftovers: cards.filter(card => !straightCards.includes(card))
     }
   } else if (count === 4 && firstRank === 5 && aceFlag) {
     // special case for wheel straights
     return {
       handRank: HandRanks.Straight,
-      cardRank: [firstRank]
+      cardRank: [firstRank],
+      usedCards: [...straightCards, wheelAce],
+      leftovers: cards.filter(card => ![...straightCards, wheelAce].includes(card))
     }
   } else {
     return false
@@ -92,6 +100,7 @@ export function checkStraight(cards: Card[]): HandScore | false {
 export function checkFlush(cards: Card[]): HandScore | false {
   const suitCounts = new Map<Suit, number>()
   let highestFlush = undefined
+  let suitCards = undefined
 
   // get a count of how many cards of each suit we have
   for (const card of cards) {
@@ -102,13 +111,19 @@ export function checkFlush(cards: Card[]): HandScore | false {
   for (const [suit, count] of suitCounts) {
     if (count >= 5) {
       const highCardVal = cards.filter((card) => card.suit === suit)[0].rank
-      highCardVal > (highestFlush ?? 0) && (highestFlush = highCardVal)
+      if (highCardVal > (highestFlush ?? 0)) {
+        highestFlush = highCardVal
+        suitCards = cards.filter((card) => card.suit === suit).slice(5)
+      }
     }
   }
-  if (highestFlush) {
+
+  if (highestFlush && suitCards) {
     return {
       handRank: HandRanks.Flush,
-      cardRank: [highestFlush]
+      cardRank: [highestFlush],
+      usedCards: suitCards,
+      leftovers: cards.filter(card => !suitCards.includes(card))
     }
   } else {
     return false
@@ -138,6 +153,7 @@ export function checkPair(cards: Card[], pairCount: 2 | 3 | 4 = 2): HandScore | 
   }
 
   // list of cards we've used to create this hand
+  // the first n cards with rank we're making a pair of
   const usedCards = cards.filter((card) => card.rank == highestPair).slice(pairCount)
 
   // return what we found, or nothing if we found nothing 
@@ -158,7 +174,7 @@ function checkHighCard(cards: Card[]): HandScore {
   const handScore = {
     handRank: HandRanks.HighCard,
     cardRank: [cards[0].rank],
-    cardsUsed: [cards[0]],
+    usedCards: [cards[0]],
     leftovers: cards.slice(1)
   }
   return handScore

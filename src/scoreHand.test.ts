@@ -60,6 +60,25 @@ test('checkPair: usedcards + leftovers should equal cards passed', () => {
 })
 
 // checkPair test
+test('checkPair: usedcards + leftovers should equal cards passed', () => {
+  const testCards = generateCards('5h 5c 5s 5d 10h 10d')
+
+  const result = checkPair(testCards)
+  const desiredHandRank = HandRanks.Pair
+  const desiredCardRank = [10]
+
+  if (result) {
+    expect(result.handRank).toStrictEqual(desiredHandRank)
+    expect(result.cardRank).toStrictEqual(desiredCardRank)
+    const allCardsSet = new Set([...result.usedCards, ...result.leftovers!])
+    const testCardsSet = new Set(testCards)
+    expect(allCardsSet).toStrictEqual(testCardsSet)
+  } else {
+    throw new Error(`No HandScore Returned!`)
+  }
+})
+
+// checkPair test
 test('checkPair: should return a 10 pair', () => {
   const testCards = generateCards('5h 6h 7h 8c 10c 10h 10c')
 
