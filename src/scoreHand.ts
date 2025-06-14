@@ -33,7 +33,7 @@ export type HandRank = typeof HandRanks[keyof typeof HandRanks]
 export type HandScore = {
   handRank: HandRank   // What rank is this hand?
   cardRank: Rank[]     // What cardRank is this hand associated with? (i.e, 10-high flush)
-  //cardsUsed: Card[]    // The cards used to make this hand (not nessesarily 5; kickers are included in leftovers)
+  usedCards: Card[]    // The cards used to make this hand (not nessesarily 5; kickers are included in leftovers)
   leftovers?: Card[]   // Cards are leftover after making this hand?
 }
 
@@ -137,12 +137,16 @@ export function checkPair(cards: Card[], pairCount: 2 | 3 | 4 = 2): HandScore | 
     }
   }
 
+  // list of cards we've used to create this hand
+  const usedCards = cards.filter((card) => card.rank == highestPair).slice(pairCount)
+
   // return what we found, or nothing if we found nothing 
   if (highestPair) {
     return {
       handRank: seekingRank,
       cardRank: [highestPair],
-      leftovers: cards.filter((card) => card.rank !== highestPair).slice(5 - pairCount)
+      usedCards: cards.filter((card) => card.rank === highestPair).slice(pairCount),
+      leftovers: cards.filter((card) => !usedCards.includes(card))
     }
   } else {
     return false;
