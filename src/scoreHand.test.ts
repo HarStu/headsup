@@ -21,7 +21,7 @@ function generateCards(cardString: string): Card[] {
       throw new Error(`Invalid cardString! Issue with ${char}`)
     }
   }
-  return retCards
+  return retCards.sort((a, b) => b.rank - a.rank)
 }
 
 // checkPair test
@@ -35,6 +35,44 @@ test('checkPair: should return a 10 pair', () => {
   if (result) {
     expect(result.handRank).toStrictEqual(desiredHandRank)
     expect(result.cardRank).toStrictEqual(desiredCardRank)
+  } else {
+    throw new Error(`No HandScore Returned!`)
+  }
+})
+
+// checkPair test
+test('checkPair: usedcards + leftovers should equal cards passed', () => {
+  const testCards = generateCards('5h 6h 7h 8c 10c 10h 10c 12h 5c')
+
+  const result = checkPair(testCards)
+  const desiredHandRank = HandRanks.Pair
+  const desiredCardRank = [10]
+
+  if (result) {
+    expect(result.handRank).toStrictEqual(desiredHandRank)
+    expect(result.cardRank).toStrictEqual(desiredCardRank)
+    const allCardsSet = new Set([...result.usedCards, ...result.leftovers!])
+    const testCardsSet = new Set(testCards)
+    expect(allCardsSet).toStrictEqual(testCardsSet)
+  } else {
+    throw new Error(`No HandScore Returned!`)
+  }
+})
+
+// checkPair test
+test('checkPair: usedcards + leftovers should equal cards passed', () => {
+  const testCards = generateCards('5h 5c 5s 5d 10h 10d')
+
+  const result = checkPair(testCards)
+  const desiredHandRank = HandRanks.Pair
+  const desiredCardRank = [10]
+
+  if (result) {
+    expect(result.handRank).toStrictEqual(desiredHandRank)
+    expect(result.cardRank).toStrictEqual(desiredCardRank)
+    const allCardsSet = new Set([...result.usedCards, ...result.leftovers!])
+    const testCardsSet = new Set(testCards)
+    expect(allCardsSet).toStrictEqual(testCardsSet)
   } else {
     throw new Error(`No HandScore Returned!`)
   }
@@ -74,11 +112,27 @@ test('checkPair: should return a 10 pair', () => {
 
 // checkStraight test
 test('checkStraight: should return a 10-high straight', () => {
-  const testCards = generateCards('10h 9h 8h 7c 6c 3h 2c')
+  const testCards = generateCards('7c 9h 8h 10h 6c 3h 2c')
 
   const result = checkStraight(testCards)
   const desiredHandRank = HandRanks.Straight
   const desiredCardRank = [10]
+
+  if (result) {
+    expect(result.handRank).toStrictEqual(desiredHandRank)
+    expect(result.cardRank).toStrictEqual(desiredCardRank)
+  } else {
+    throw new Error(`No HandScore Returned!`)
+  }
+})
+
+// checkStraight test
+test('checkStraight: should return an 8-high straight', () => {
+  const testCards = generateCards('8h 7h 7d 7c 6h 5d 4c')
+
+  const result = checkStraight(testCards)
+  const desiredHandRank = HandRanks.Straight
+  const desiredCardRank = [8]
 
   if (result) {
     expect(result.handRank).toStrictEqual(desiredHandRank)
