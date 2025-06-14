@@ -127,6 +127,22 @@ test('checkStraight: should return a 10-high straight', () => {
 })
 
 // checkStraight test
+test('checkStraight: should return an 8-high straight', () => {
+  const testCards = generateCards('8h 7h 7d 7c 6h 5d 4c')
+
+  const result = checkStraight(testCards)
+  const desiredHandRank = HandRanks.Straight
+  const desiredCardRank = [8]
+
+  if (result) {
+    expect(result.handRank).toStrictEqual(desiredHandRank)
+    expect(result.cardRank).toStrictEqual(desiredCardRank)
+  } else {
+    throw new Error(`No HandScore Returned!`)
+  }
+})
+
+// checkStraight test
 test('checkStraight: should return a 5-high straight', () => {
   const testCards = generateCards('14h 9h 8h 5c 4c 3h 2c')
 

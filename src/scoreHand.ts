@@ -55,7 +55,7 @@ export function checkStraight(cards: Card[]): HandScore | false {
 
   let count = 1
   let firstRank = cards[0].rank
-  let straightCards = cards.slice(1)
+  let straightCards = [cards[0]]
   for (let i = 1; i < cards.length; i++) {
     const card = cards[i]
     if (card.rank === cards[i - 1].rank - 1) {
@@ -63,13 +63,15 @@ export function checkStraight(cards: Card[]): HandScore | false {
       // If so, the straight is continuing
       count++
       straightCards.push(cards[i])
-    } else if (!(card.rank === cards[i - 1].rank - 1)) {
-      // Otherwise, (assuming the card doesn't equal the rank of the proceeding card (in which case nothing happens))
-      // we know that the straight is not continuing, reset the count and the new card here
+    } else if (!(card.rank === cards[i - 1].rank)) {
+      // Skip duplicates
+      // if the next card isn't a duplicate or one-rank down, the straight is broken
+      // in that case, reset the count and firstCard
       count = 1
       firstRank = card.rank
       straightCards = [cards[i]]
     }
+
     // Break out when we find a straight. 
     // Since we're working down, breaking early means breaking with the highest straight
     if (count === 5 || count === 4 && aceFlag && firstRank === 5) {
