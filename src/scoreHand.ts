@@ -41,7 +41,7 @@ function scoreHand(board: Board, holeCards: HoleCards): HandScore {
   // Check each possible HandRank, starting with a StraightFlush
   // If a match is found, return it
   // If not, proceed to the next one 
-  const cards: Card[] = [...board, ...holeCards].sort((a, b) => a.rank - b.rank)
+  const cards: Card[] = [...board, ...holeCards].sort((a, b) => b.rank - a.rank)
 
   return checkHighCard(cards)
 }
@@ -72,7 +72,7 @@ export function checkStraight(cards: Card[]): HandScore | false {
     }
     // Break out when we find a straight. 
     // Since we're working down, breaking early means breaking with the highest straight
-    if (count === 5) {
+    if (count === 5 || count === 4 && aceFlag && firstRank === 5) {
       break;
     }
   }
@@ -113,7 +113,7 @@ export function checkFlush(cards: Card[]): HandScore | false {
       const highCardVal = cards.filter((card) => card.suit === suit)[0].rank
       if (highCardVal > (highestFlush ?? 0)) {
         highestFlush = highCardVal
-        suitCards = cards.filter((card) => card.suit === suit).slice(5)
+        suitCards = cards.filter((card) => card.suit === suit).slice(0, 5)
       }
     }
   }
@@ -154,14 +154,14 @@ export function checkPair(cards: Card[], pairCount: 2 | 3 | 4 = 2): HandScore | 
 
   // list of cards we've used to create this hand
   // the first n cards with rank we're making a pair of
-  const usedCards = cards.filter((card) => card.rank == highestPair).slice(pairCount)
+  const usedCards = cards.filter((card) => card.rank == highestPair).slice(0, pairCount)
 
   // return what we found, or nothing if we found nothing 
   if (highestPair) {
     return {
       handRank: seekingRank,
       cardRank: [highestPair],
-      usedCards: cards.filter((card) => card.rank === highestPair).slice(pairCount),
+      usedCards: cards.filter((card) => card.rank === highestPair).slice(0, pairCount),
       leftovers: cards.filter((card) => !usedCards.includes(card))
     }
   } else {

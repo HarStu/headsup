@@ -21,7 +21,7 @@ function generateCards(cardString: string): Card[] {
       throw new Error(`Invalid cardString! Issue with ${char}`)
     }
   }
-  return retCards
+  return retCards.sort((a, b) => b.rank - a.rank)
 }
 
 // checkPair test
@@ -112,7 +112,7 @@ test('checkPair: should return a 10 pair', () => {
 
 // checkStraight test
 test('checkStraight: should return a 10-high straight', () => {
-  const testCards = generateCards('10h 9h 8h 7c 6c 3h 2c')
+  const testCards = generateCards('7c 9h 8h 10h 6c 3h 2c')
 
   const result = checkStraight(testCards)
   const desiredHandRank = HandRanks.Straight
