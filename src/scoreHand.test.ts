@@ -17,9 +17,7 @@ function generateCards(cardString: string): Card[] {
       retCards.push({ rank: retRank as Rank, suit: retSuit as Suit })
       retRank = 0
       retSuit = ''
-    } else if (char === ' ') {
-      ;
-    } else {
+    } else if (!(char === ' ')) {
       throw new Error(`Invalid cardString! Issue with ${char}`)
     }
   }

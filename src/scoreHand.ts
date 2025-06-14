@@ -31,9 +31,10 @@ export type HandRank = typeof HandRanks[keyof typeof HandRanks]
 
 // handScore
 export type HandScore = {
-  handRank: HandRank // What rank is this hand?
-  cardRank: Rank[]   // What cardRank is this hand associated with? (i.e, 10-high flush)
-  leftovers?: Card[]   // What cards are leftover after making this hand?
+  handRank: HandRank   // What rank is this hand?
+  cardRank: Rank[]     // What cardRank is this hand associated with? (i.e, 10-high flush)
+  //cardsUsed: Card[]    // The cards used to make this hand (not nessesarily 5; kickers are included in leftovers)
+  leftovers?: Card[]   // Cards are leftover after making this hand?
 }
 
 function scoreHand(board: Board, holeCards: HoleCards): HandScore {
@@ -60,8 +61,8 @@ export function checkStraight(cards: Card[]): HandScore | false {
       // If so, the straight is continuing
       count++
     } else if (!(card.rank === cards[i - 1].rank - 1)) {
-      // Otherwise, if the card doesn't equal the rank of the proceeding card (in which case nothing happens)
-      // the straight is not continuing, reset the count and the new card here
+      // Otherwise, (assuming the card doesn't equal the rank of the proceeding card (in which case nothing happens))
+      // we know that the straight is not continuing, reset the count and the new card here
       count = 1
       firstRank = card.rank
     }
@@ -88,6 +89,31 @@ export function checkStraight(cards: Card[]): HandScore | false {
   }
 }
 
+export function checkFlush(cards: Card[]): HandScore | false {
+  const suitCounts = new Map<Suit, number>()
+  let highestFlush = undefined
+
+  // get a count of how many cards of each suit we have
+  for (const card of cards) {
+    suitCounts.set(card.suit, (suitCounts.get(card.suit) ?? 0) + 1)
+  }
+
+  // check for any cases where we have 5 or more cards of a single suit
+  for (const [suit, count] of suitCounts) {
+    if (count >= 5) {
+      const highCardVal = cards.filter((card) => card.suit === suit)[0].rank
+      highCardVal > (highestFlush ?? 0) && (highestFlush = highCardVal)
+    }
+  }
+  if (highestFlush) {
+    return {
+      handRank: HandRanks.Flush,
+      cardRank: [highestFlush]
+    }
+  } else {
+    return false
+  }
+}
 
 // checkPair function can be configured to check for pairs, three-of-a-kind (threepair), or four-of-a-king (fourpair)
 // default is pairs though
@@ -128,6 +154,7 @@ function checkHighCard(cards: Card[]): HandScore {
   const handScore = {
     handRank: HandRanks.HighCard,
     cardRank: [cards[0].rank],
+    cardsUsed: [cards[0]],
     leftovers: cards.slice(1)
   }
   return handScore
