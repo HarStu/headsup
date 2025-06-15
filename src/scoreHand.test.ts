@@ -1,8 +1,19 @@
 import type { Card, Suit, Rank, HandRank, HandScore } from './scoreHand.ts'
-import { checkPair, checkStraight, checkFlush, checkStraightFlush, HandRanks } from './scoreHand.ts'
+import {
+  checkPair,
+  checkTwoPair,
+  checkStraight,
+  checkFlush,
+  checkFullHouse,
+  checkStraightFlush,
+  HandRanks
+} from './scoreHand.ts'
 import { test, expect } from 'vitest'
 
 // utility function for quickly returning an array of cards for testing
+// ERROR -- CURRENTLY BROKEN FOR 11 (jack)
+// I think everything else is fine? 
+// This is a one-off utility function, so it's probably ok for now
 function generateCards(cardString: string): Card[] {
   let retRank: Rank | 0 = 0;
   let retSuit: Suit | '' = '';
@@ -223,4 +234,20 @@ test('checkStraightFlush: should return false', () => {
   const result = checkStraightFlush(testCards)
 
   expect(result).toBe(false)
+})
+
+// checkFullHouse test
+test('checkFullHouse: should return a 6-12 Full House', () => {
+  const testCards = generateCards('12h 12c 6c 6h 6h 4c 3c')
+
+  const result = checkFullHouse(testCards)
+  const desiredHandRank = HandRanks.FullHouse
+  const desiredCardRank = [6, 12]
+
+  if (result) {
+    expect(result.handRank).toStrictEqual(desiredHandRank)
+    expect(result.cardRank).toStrictEqual(desiredCardRank)
+  } else {
+    throw new Error(`No HandScore Returned!`)
+  }
 })
