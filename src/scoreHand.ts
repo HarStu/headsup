@@ -46,7 +46,19 @@ function scoreHand(board: Board, holeCards: HoleCards): HandScore {
   return checkHighCard(cards)
 }
 
-// checkStraight function 
+export function checkStraightFlush(cards: Card[]): HandScore | false {
+  const straightRes = checkStraight(cards)
+  if (straightRes && checkFlush(straightRes.usedCards)) {
+    return {
+      handRank: HandRanks.StraightFlush,
+      cardRank: straightRes.cardRank,
+      usedCards: straightRes.usedCards,
+    }
+  } else {
+    return false
+  }
+}
+
 export function checkStraight(cards: Card[]): HandScore | false {
   // Cards already arrive here in descending rank order, which helps a lot 
   // Set a flag that confirms if we have an Ace or not (will need later for wheel straights)
