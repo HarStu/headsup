@@ -46,7 +46,51 @@ function scoreHand(board: Board, holeCards: HoleCards): HandScore {
   return checkHighCard(cards)
 }
 
-// checkStraight function 
+export function checkTwoPair(cards: Card[]): HandScore | false {
+  const firstPairRes = checkPair(cards)
+  if (firstPairRes && firstPairRes.leftovers) {
+    const secondPairRes = checkPair(firstPairRes.leftovers)
+    if (secondPairRes) {
+      return {
+        handRank: HandRanks.TwoPair,
+        cardRank: [...firstPairRes.cardRank, ...secondPairRes.cardRank],
+        usedCards: [...firstPairRes.usedCards, ...secondPairRes.usedCards],
+        leftovers: secondPairRes.leftovers
+      }
+    }
+  }
+  return false
+}
+
+export function checkFullHouse(cards: Card[]): HandScore | false {
+  const threeRes = checkPair(cards, 3)
+  if (threeRes && threeRes.leftovers) {
+    const pairRes = checkPair(threeRes.leftovers)
+    if (pairRes) {
+      return {
+        handRank: HandRanks.FullHouse,
+        cardRank: [...threeRes.cardRank, ...pairRes.cardRank],
+        usedCards: [...threeRes.usedCards, ...pairRes.usedCards],
+        leftovers: pairRes.leftovers
+      }
+    }
+  }
+  return false
+}
+
+export function checkStraightFlush(cards: Card[]): HandScore | false {
+  const straightRes = checkStraight(cards)
+  if (straightRes && checkFlush(straightRes.usedCards)) {
+    return {
+      handRank: HandRanks.StraightFlush,
+      cardRank: straightRes.cardRank,
+      usedCards: straightRes.usedCards,
+    }
+  } else {
+    return false
+  }
+}
+
 export function checkStraight(cards: Card[]): HandScore | false {
   // Cards already arrive here in descending rank order, which helps a lot 
   // Set a flag that confirms if we have an Ace or not (will need later for wheel straights)
