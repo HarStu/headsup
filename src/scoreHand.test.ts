@@ -1,5 +1,5 @@
 import type { Card, Suit, Rank, HandRank, HandScore } from './scoreHand.ts'
-import { checkPair, checkStraight, checkFlush, HandRanks } from './scoreHand.ts'
+import { checkPair, checkStraight, checkFlush, checkStraightFlush, HandRanks } from './scoreHand.ts'
 import { test, expect } from 'vitest'
 
 // utility function for quickly returning an array of cards for testing
@@ -198,4 +198,29 @@ test('checkFlush: should return false', () => {
   const result = checkFlush(testCards)
 
   expect(result).toStrictEqual(false)
+})
+
+// checkStraightFlush test
+test('checkStraightFlush: should return a 9-high straight flush', () => {
+  const testCards = generateCards('9h 8h 7h 6h 5h 4c 3c')
+
+  const result = checkStraightFlush(testCards)
+  const desiredHandRank = HandRanks.StraightFlush
+  const desiredCardRank = [9]
+
+  if (result) {
+    expect(result.handRank).toStrictEqual(desiredHandRank)
+    expect(result.cardRank).toStrictEqual(desiredCardRank)
+  } else {
+    throw new Error(`No HandScore Returned!`)
+  }
+})
+
+// checkStraightFlush test
+test('checkStraightFlush: should return false', () => {
+  const testCards = generateCards('9h 8c 7h 6h 5h 4c 3h')
+
+  const result = checkStraightFlush(testCards)
+
+  expect(result).toBe(false)
 })
