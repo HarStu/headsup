@@ -29,6 +29,13 @@ export const HandRanks = {
 }
 export type HandRank = typeof HandRanks[keyof typeof HandRanks]
 
+// the final hand -- including exactly five cards
+export type ScoredHand = {
+  handRank: HandRank,
+  cardRank: Rank[]
+  cards: Card[]
+}
+
 // handScore
 export type HandScore = {
   handRank: HandRank   // What rank is this hand?
@@ -37,13 +44,91 @@ export type HandScore = {
   leftovers?: Card[]   // Cards are leftover after making this hand?
 }
 
-function scoreHand(board: Board, holeCards: HoleCards): HandScore {
+function scoreHand(board: Board, holeCards: HoleCards): ScoredHand {
   // Check each possible HandRank, starting with a StraightFlush
   // If a match is found, return it
   // If not, proceed to the next one 
   const cards: Card[] = [...board, ...holeCards].sort((a, b) => b.rank - a.rank)
 
-  return checkHighCard(cards)
+  const straightFlush = checkStraightFlush(cards)
+  if (straightFlush) {
+    return {
+      handRank: straightFlush.handRank,
+      cardRank: straightFlush.cardRank,
+      cards: straightFlush.usedCards
+    } as ScoredHand
+  }
+
+  const fourPair = checkPair(cards, 4)
+  if (fourPair) {
+    return {
+      handRank: fourPair.handRank,
+      cardRank: fourPair.cardRank,
+      cards: fourPair.usedCards.concat(fourPair.leftovers![0])
+    }
+  }
+
+  const fullHouse = checkFullHouse(cards)
+  if (fullHouse) {
+    return {
+      handRank: fullHouse.handRank,
+      cardRank: fullHouse.cardRank,
+      cards: fullHouse.usedCards
+    }
+  }
+
+  const flush = checkFlush(cards)
+  if (flush) {
+    return {
+      handRank: flush.handRank,
+      cardRank: flush.cardRank,
+      cards: flush.usedCards
+    }
+  }
+
+  const straight = checkStraight(cards)
+  if (straight) {
+    return {
+      handRank: straight.handRank,
+      cardRank: straight.cardRank,
+      cards: straight.usedCards
+    }
+  }
+
+  const threePair = checkPair(cards, 3)
+  if (threePair) {
+    return {
+      handRank: threePair.handRank,
+      cardRank: threePair.cardRank,
+      cards: threePair.usedCards.concat(threePair.leftovers!.slice(0, 1))
+    }
+  }
+
+  const twoPair = checkTwoPair(cards)
+  if (twoPair) {
+    return {
+      handRank: twoPair.handRank,
+      cardRank: twoPair.cardRank,
+      cards: twoPair.usedCards.concat(twoPair.leftovers![0])
+    }
+  }
+
+  const pair = checkPair(cards)
+  if (pair) {
+    return {
+      handRank: pair.handRank,
+      cardRank: pair.cardRank,
+      cards: pair.usedCards.concat(pair.leftovers!.slice(0, 2))
+    }
+  }
+
+  // always a highcard if nothing else
+  const highCard = checkHighCard(cards)
+  return {
+    handRank: highCard.handRank,
+    cardRank: highCard.cardRank,
+    cards: highCard.usedCards.concat(highCard.leftovers!.slice(0, 4))
+  }
 }
 
 export function checkTwoPair(cards: Card[]): HandScore | false {
